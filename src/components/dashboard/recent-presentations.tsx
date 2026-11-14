@@ -52,7 +52,7 @@ export function RecentPresentations({ presentations, onSelect, onDelete }: Recen
         >
           {/* Top Preview Canvas/Thumbnail */}
           <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden flex items-center justify-center border-b border-zinc-800/60">
-            {p.thumbnail ? (
+            {p.thumbnail && (p.thumbnail.startsWith('data:image/') || p.thumbnail.startsWith('blob:')) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={p.thumbnail}

@@ -47,6 +47,8 @@ export async function loadPDFDocument(data: ArrayBuffer): Promise<PDFDocumentPro
     data: copy,
     cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/cmaps/',
     cMapPacked: true,
+    stopAtErrors: true,
+    useSystemFonts: true,
   });
 
   const pdfDoc = await loadingTask.promise;

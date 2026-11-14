@@ -4,6 +4,8 @@ interface RateLimitRecord {
   blockedUntil?: number;
 }
 
+const MAX_RATE_LIMIT_RECORDS = 5000;
+
 export class PairingRateLimiter {
   private records: Map<string, RateLimitRecord> = new Map();
   private readonly maxAttempts: number;
@@ -18,6 +20,28 @@ export class PairingRateLimiter {
     this.maxAttempts = maxAttempts;
     this.windowMs = windowMs;
     this.blockDurationMs = blockDurationMs;
+  }
+
+  /**
+   * Periodically prunes expired records to prevent unbounded memory growth
+   */
+  private prune(): void {
+    const now = Date.now();
+    for (const [key, record] of this.records.entries()) {
+      const isBlockExpired = !record.blockedUntil || record.blockedUntil <= now;
+      const isWindowExpired = now - record.lastAttemptTime > this.windowMs;
+      if (isBlockExpired && isWindowExpired) {
+        this.records.delete(key);
+      }
+    }
+
+    // If still over capacity after pruning, drop the oldest entry
+    if (this.records.size > MAX_RATE_LIMIT_RECORDS) {
+      const oldestKey = this.records.keys().next().value;
+      if (oldestKey) {
+        this.records.delete(oldestKey);
+      }
+    }
   }
 
   /**
@@ -55,6 +79,12 @@ export class PairingRateLimiter {
    */
   public recordFailedAttempt(identifier: string): { blocked: boolean; retryAfterSeconds?: number } {
     const now = Date.now();
+
+    // Trigger cleanup if map size approaches threshold
+    if (this.records.size >= MAX_RATE_LIMIT_RECORDS) {
+      this.prune();
+    }
+
     let record = this.records.get(identifier);
 
     if (!record || now - record.lastAttemptTime > this.windowMs) {

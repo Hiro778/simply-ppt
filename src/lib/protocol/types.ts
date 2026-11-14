@@ -30,7 +30,7 @@ export const PointSchema = z.object({
 });
 export type Point = z.infer<typeof PointSchema>;
 
-// Schemas for payloads
+// Schemas for payloads with strict security bounds
 export const NextSlidePayloadSchema = z.object({}).strict().optional().default({});
 export type NextSlidePayload = z.infer<typeof NextSlidePayloadSchema>;
 
@@ -38,19 +38,19 @@ export const PreviousSlidePayloadSchema = z.object({}).strict().optional().defau
 export type PreviousSlidePayload = z.infer<typeof PreviousSlidePayloadSchema>;
 
 export const GoToSlidePayloadSchema = z.object({
-  slideNumber: z.number().int().min(1),
+  slideNumber: z.number().int().min(1).max(10000),
 });
 export type GoToSlidePayload = z.infer<typeof GoToSlidePayloadSchema>;
 
 export const DrawPayloadSchema = z.object({
-  points: z.array(PointSchema).min(1),
+  points: z.array(PointSchema).min(1).max(1000),
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}|[A-Fa-f0-9]{8})$/, 'Invalid hex color'),
   strokeWidth: z.number().positive().max(50),
 });
 export type DrawPayload = z.infer<typeof DrawPayloadSchema>;
 
 export const HighlightPayloadSchema = z.object({
-  points: z.array(PointSchema).min(1),
+  points: z.array(PointSchema).min(1).max(1000),
   color: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3}|[A-Fa-f0-9]{8})$/, 'Invalid hex color'),
   strokeWidth: z.number().positive().max(100),
   opacity: z.number().min(0.05).max(1).optional().default(0.4),
@@ -72,39 +72,39 @@ export const ZoomPayloadSchema = z.object({
 export type ZoomPayload = z.infer<typeof ZoomPayloadSchema>;
 
 export const ClearAnnotationPayloadSchema = z.object({
-  slideNumber: z.number().int().positive().optional(),
+  slideNumber: z.number().int().positive().max(10000).optional(),
 });
 export type ClearAnnotationPayload = z.infer<typeof ClearAnnotationPayloadSchema>;
 
 export const PresentationStatePayloadSchema = z.object({
-  currentSlide: z.number().int().min(1),
-  totalSlides: z.number().int().min(0),
+  currentSlide: z.number().int().min(1).max(10000),
+  totalSlides: z.number().int().min(0).max(10000),
   isPresenting: z.boolean(),
-  title: z.string(),
-  backgroundColor: z.string().optional(),
+  title: z.string().max(256),
+  backgroundColor: z.string().max(32).optional(),
   scaleMode: z.enum(['contain', 'fit-width', 'original']).optional(),
 });
 export type PresentationStatePayload = z.infer<typeof PresentationStatePayloadSchema>;
 
 export const DeviceConnectedPayloadSchema = z.object({
-  deviceId: z.string().min(1),
-  deviceName: z.string().min(1),
+  deviceId: z.string().min(1).max(128),
+  deviceName: z.string().min(1).max(100),
   mode: MobileModeEnum.optional().default('remote'),
 });
 export type DeviceConnectedPayload = z.infer<typeof DeviceConnectedPayloadSchema>;
 
 export const DeviceDisconnectedPayloadSchema = z.object({
-  deviceId: z.string().min(1),
-  reason: z.string().optional(),
+  deviceId: z.string().min(1).max(128),
+  reason: z.string().max(256).optional(),
 });
 export type DeviceDisconnectedPayload = z.infer<typeof DeviceDisconnectedPayloadSchema>;
 
 // Generic Protocol Message Envelope
 export const ProtocolMessageSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(128),
   type: CommandTypeEnum,
-  sessionId: z.string().min(1),
-  deviceToken: z.string().optional(),
+  sessionId: z.string().min(1).max(128),
+  deviceToken: z.string().max(128).optional(),
   timestamp: z.number().positive(),
   payload: z.unknown(),
 });

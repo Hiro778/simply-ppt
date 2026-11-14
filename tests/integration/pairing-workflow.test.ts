@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { pairingService } from '@/lib/supabase/service';
-import { ProtocolMessage } from '@/lib/protocol/types';
+import { pairingService, PairingRequest } from '@/lib/supabase/service';
+import {
+  ProtocolMessage,
+  GoToSlidePayload,
+  LaserPointerPayload,
+  DeviceDisconnectedPayload,
+} from '@/lib/protocol/types';
 
 describe('Pairing & Remote Control Workflow (Integration)', () => {
   it('executes the full end-to-end pairing, approval, command, and revocation lifecycle', async () => {
@@ -11,7 +16,7 @@ describe('Pairing & Remote Control Workflow (Integration)', () => {
     expect(session.totalSlides).toBe(20);
 
     // 2. Set up host listener for incoming pairing requests
-    let capturedRequest: any = null;
+    let capturedRequest: PairingRequest | null = null;
     const unsubRequests = pairingService.subscribeToPairingRequests(session.id, (req) => {
       capturedRequest = req;
     });
@@ -69,7 +74,7 @@ describe('Pairing & Remote Control Workflow (Integration)', () => {
 
     expect(receivedCommands.length).toBe(2);
     expect(receivedCommands[1].type).toBe('GO_TO_SLIDE');
-    expect((receivedCommands[1].payload as any).slideNumber).toBe(8);
+    expect((receivedCommands[1].payload as GoToSlidePayload).slideNumber).toBe(8);
 
     // 8. Mobile sends LASER_POINTER coordinates
     pairingService.broadcastCommand(session.id, {
@@ -83,7 +88,7 @@ describe('Pairing & Remote Control Workflow (Integration)', () => {
 
     expect(receivedCommands.length).toBe(3);
     expect(receivedCommands[2].type).toBe('LASER_POINTER');
-    expect((receivedCommands[2].payload as any).visible).toBe(true);
+    expect((receivedCommands[2].payload as LaserPointerPayload).visible).toBe(true);
 
     // 9. Host broadcasts presentation state back to mobile
     pairingService.broadcastPresentationState(session.id, {
@@ -100,7 +105,7 @@ describe('Pairing & Remote Control Workflow (Integration)', () => {
     await pairingService.revokeDevice(session.id, mobileDeviceId);
     expect(receivedCommands.length).toBe(5);
     expect(receivedCommands[4].type).toBe('DEVICE_DISCONNECTED');
-    expect((receivedCommands[4].payload as any).deviceId).toBe(mobileDeviceId);
+    expect((receivedCommands[4].payload as DeviceDisconnectedPayload).deviceId).toBe(mobileDeviceId);
 
     // Cleanup
     unsubRequests();

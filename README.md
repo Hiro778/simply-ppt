@@ -152,16 +152,27 @@ To enable live cross-network cloud pairing with Supabase:
 
 ---
 
-## 9. Supabase Setup
+## 9. Supabase Setup & Zero-Trust Database Architecture
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase Dashboard.
-3. Run the schema script located at [`supabase/schema.sql`](supabase/schema.sql).
-4. Verify that the following tables and RLS policies are created:
-   - `presentation_sessions`
-   - `pairing_requests`
-   - `paired_devices`
-5. Enable Realtime replication for these tables under **Database &rarr; Replication**.
+3. Run the hardened schema script located at [`supabase/schema.sql`](supabase/schema.sql).
+4. The schema enforces a **Default-Deny Zero-Trust RLS Model**:
+   - Direct anonymous `SELECT`, `UPDATE`, and `DELETE` operations on sensitive tables (`presentation_sessions`, `pairing_requests`, `paired_devices`) are completely disabled.
+   - All interactions are mediated through hardened `SECURITY DEFINER` RPC functions with explicit cryptographic verification.
+   - All session host tokens, device tokens, and temporary pair codes are stored as salted SHA-256 hashes (`host_token_hash`, `device_token_hash`, `pair_code_hash`). Plaintext secrets never reside in database tables.
+   - Rate limiting is enforced at the database level (`pairing_rate_limits` table and `rpc_resolve_pair_code`) to thwart brute-force pair code enumeration.
+5. Functions defined:
+   - `rpc_create_session`: Creates a new session with hashed host token and pair code.
+   - `rpc_resolve_pair_code`: Resolves pair code to session ID with rate limiting and 3-minute TTL check.
+   - `rpc_submit_pairing_request`: Mobile client submits pairing request with requester secret hash.
+   - `rpc_poll_pairing_status`: Requester polls status with secret hash without viewing other device tokens.
+   - `rpc_host_get_pending_requests`: Host retrieves pending requests authenticated via host token hash.
+   - `rpc_approve_pairing_request`: Host approves a device; invalidates the single-use 6-digit pair code.
+   - `rpc_reject_pairing_request`: Host rejects pending request.
+   - `rpc_revoke_device`: Host revokes device, immediately blocking further commands.
+   - `rpc_verify_device_token`: Verifies that an approved device token remains active.
+   - `rpc_refresh_pair_code`: Generates a new code when expired or requested by host.
 
 ---
 
@@ -200,10 +211,11 @@ pnpm lint
 ```
 
 ### Test Coverage Highlights
+- **Database Authorization Security Suite (`tests/security/database-authorization.test.ts`):** 11 database authorization test cases verifying anonymous token non-exposure, rejection of unauthorized session modifications and approvals, expired code rejection, command revocation enforcement, cross-session command isolation, and server-side brute-force rate limiting executed against an actual PostgreSQL engine.
 - **PDF Validation (`tests/unit/pdf-validator.test.ts`):** Magic bytes `%PDF-`, buffer slicing, size thresholds, corrupted file detection.
 - **Slide Navigation (`tests/unit/navigation.test.ts`):** Boundary clamping, slide increment/decrement, formatters.
 - **Pairing Code & Expiration (`tests/unit/pairing-code.test.ts`):** 6-digit cryptographic generation, 3-minute TTL validation.
-- **Rate Limiting (`tests/unit/rate-limiter.test.ts`):** Brute-force mitigation and lockout window.
+- **Rate Limiting (`tests/unit/rate-limiter.test.ts`):** Brute-force mitigation, sliding window, and memory cleanup.
 - **Protocol Contract (`tests/unit/protocol-validator.test.ts`):** Envelope parsing, payload guards, normalized coordinates, and Indonesian voice command parser.
 - **Pairing Lifecycle Integration (`tests/integration/pairing-workflow.test.ts`):** Complete host creation, request, approval, command transmission, and revocation workflow.
 - **UI Components Integration (`tests/integration/desktop-workflow.test.tsx`):** Navbar, Modals, Approval Sheets, and Drawers.
