@@ -11,6 +11,7 @@ import {
   hashRequesterSecret,
   generateSalt,
   generateSecureToken,
+  DEFAULT_PAIR_CODE_SALT,
 } from '../crypto/hash';
 
 export interface PresentationSession {
@@ -82,7 +83,7 @@ export class PairingService {
     const hostToken = generateSecureToken(32);
     const hostTokenHash = await hashHostToken(hostToken);
     const pairCode = generatePairCode();
-    const pairCodeSalt = generateSalt(16);
+    const pairCodeSalt = process.env.NEXT_PUBLIC_PAIR_CODE_SALT || DEFAULT_PAIR_CODE_SALT;
     const pairCodeHash = await hashPairCode(pairCode, pairCodeSalt);
     const expiresAt = calculateExpiration(3 * 60 * 1000).toISOString();
 
@@ -132,7 +133,7 @@ export class PairingService {
     }
 
     const pairCode = generatePairCode();
-    const pairCodeSalt = generateSalt(16);
+    const pairCodeSalt = process.env.NEXT_PUBLIC_PAIR_CODE_SALT || DEFAULT_PAIR_CODE_SALT;
     const pairCodeHash = await hashPairCode(pairCode, pairCodeSalt);
     const expiresAt = calculateExpiration(3 * 60 * 1000).toISOString();
 
@@ -167,7 +168,7 @@ export class PairingService {
     pairCode: string,
     deviceId: string,
     deviceName: string
-  ): Promise<{ success: boolean; error?: string; requestId?: string; sessionId?: string }> {
+  ): Promise<{ success: boolean; error?: string; requestId?: string; sessionId?: string; requesterSecret?: string }> {
     // 1. Rate limiter check
     const rateCheck = defaultPairingRateLimiter.canAttempt(deviceId);
     if (!rateCheck.allowed) {
@@ -185,8 +186,8 @@ export class PairingService {
     const client = getSupabaseClient();
     if (!session && client) {
       try {
-        // Attempt resolution with pair code
-        const salt = generateSalt(16);
+        // Attempt resolution with pair code and shared pepper/salt
+        const salt = process.env.NEXT_PUBLIC_PAIR_CODE_SALT || DEFAULT_PAIR_CODE_SALT;
         const codeHash = await hashPairCode(pairCode, salt);
         const { data, error } = await client.rpc('rpc_resolve_pair_code', {
           p_client_identifier: deviceId,
@@ -201,7 +202,10 @@ export class PairingService {
       }
     }
 
-    if (!session || !isPairCodeValid(session.expiresAt)) {
+    const isLocalSessionValid = !!(session && isPairCodeValid(session.expiresAt));
+    const isSupabaseSessionValid = !session && !!targetSessionId;
+
+    if (!isLocalSessionValid && !isSupabaseSessionValid) {
       defaultPairingRateLimiter.recordFailedAttempt(deviceId);
       return {
         success: false,
@@ -212,13 +216,14 @@ export class PairingService {
     // Reset rate limiter on valid code
     defaultPairingRateLimiter.reset(deviceId);
 
+    const resolvedSessionId = session?.id || targetSessionId!;
     const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}`;
     const requesterSecret = generateSecureToken(16);
     const requesterSecretHash = await hashRequesterSecret(requesterSecret);
 
     const req: PairingRequest = {
       id: requestId,
-      sessionId: session.id,
+      sessionId: resolvedSessionId,
       deviceId,
       deviceName,
       requesterSecret,
@@ -227,13 +232,13 @@ export class PairingService {
     };
 
     localStore.requests.set(requestId, req);
-    localStore.emitRequest(session.id, req);
+    localStore.emitRequest(resolvedSessionId, req);
 
     if (client) {
       try {
         await client.rpc('rpc_submit_pairing_request', {
           p_request_id: requestId,
-          p_session_id: session.id,
+          p_session_id: resolvedSessionId,
           p_device_id: deviceId,
           p_device_name: deviceName,
           p_requester_secret_hash: requesterSecretHash,
@@ -246,7 +251,8 @@ export class PairingService {
     return {
       success: true,
       requestId,
-      sessionId: session.id,
+      sessionId: resolvedSessionId,
+      requesterSecret,
     };
   }
 

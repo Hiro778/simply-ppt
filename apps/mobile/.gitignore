@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native builds & caches
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/local.properties
+android/.cxx/
+
+# Environment files
+.env*.local
+.env
+
+# Keystores (keep debug.keystore for dev if needed, ignore custom release keystores)
+*.keystore
+!android/app/debug.keystore
+
+# Temporary files & logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log

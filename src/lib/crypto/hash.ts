@@ -19,11 +19,13 @@ export function generateSecureToken(bytes: number = 32): string {
     .join('');
 }
 
+export const DEFAULT_PAIR_CODE_SALT = 'simply_ppt_pairing_salt_v1';
+
 export function generateSalt(bytes: number = 16): string {
   return generateSecureToken(bytes);
 }
 
-export async function hashPairCode(pairCode: string, salt: string): Promise<string> {
+export async function hashPairCode(pairCode: string, salt: string = DEFAULT_PAIR_CODE_SALT): Promise<string> {
   return sha256(`simply_ppt_code:${salt}:${pairCode}`);
 }
 
