@@ -24,9 +24,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -34,15 +31,13 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install Monorepo Dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Install Mobile Dependencies
         working-directory: apps/mobile
-        run: npm ci
+        run: npm install
 
       - name: Verify TypeScript & Jest Tests
         working-directory: apps/mobile
@@ -58,6 +53,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          chmod +x gradlew
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
             echo "Release keystore decoded from GitHub Actions Secret."

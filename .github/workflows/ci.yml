@@ -23,8 +23,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Install Monorepo Dependencies
         run: pnpm install --frozen-lockfile
@@ -59,7 +57,7 @@ jobs:
 
       - name: Install Mobile Dependencies
         working-directory: apps/mobile
-        run: npm ci
+        run: npm install
 
       - name: Mobile TypeScript Check
         working-directory: apps/mobile
