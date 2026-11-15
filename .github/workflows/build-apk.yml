@@ -24,6 +24,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+            ndk;26.1.10909125
+
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -49,14 +58,25 @@ jobs:
         working-directory: apps/mobile/android
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'SimplyPPTRelease2026' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'simplyppt-release' }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || 'SimplyPPTRelease2026' }}
         run: |
           chmod +x gradlew
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
             echo "Release keystore decoded from GitHub Actions Secret."
+          else
+            echo "Generating dedicated release keystore for CI release artifact..."
+            keytool -genkeypair -v \
+              -keystore "$ANDROID_KEYSTORE_PATH" \
+              -alias "$ANDROID_KEY_ALIAS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+              -keypass "$ANDROID_KEY_PASSWORD" \
+              -dname "CN=Simply PPT Release, O=Simply PPT, C=ID"
           fi
           ./gradlew assembleRelease --no-daemon
 
@@ -66,6 +86,9 @@ jobs:
           if [ -f "$APK_PATH" ]; then
             echo "APK successfully built at $APK_PATH"
             sha256sum "$APK_PATH"
+            APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+            echo "Using apksigner at $APKSIGNER"
+            "$APKSIGNER" verify --verbose --print-certs "$APK_PATH"
           else
             echo "Error: APK not found"
             exit 1

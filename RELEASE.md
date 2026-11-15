@@ -12,7 +12,7 @@
 | Component | Target Platform | Version / Identifier | Integrity / Checksum |
 |---|---|---|---|
 | **Web Presentation System** | Next.js 16 (Turbopack) | `1.0.0` | Node.js 20+, zero-document upload architecture |
-| **Android Remote Controller** | Android (APK) | `com.hiro.simplyppt` (v1.0.0, code 1) | SHA-256: `fa8161b83696ce3046b8c43ac59c1940f3102568b419c2f9bbee9373b4b48f35` |
+| **Android Remote Controller** | Android (APK) | `com.hiro.simplyppt` (v1.0.0, code 1) | SHA-256: `e7c986e7b1caf50998fac947c1348fbac2ef86b734a1902c0186e7e73b9d9320` |
 | **Database Authorization Schema** | PostgreSQL (Supabase) | `20261114000000_security_hardening.sql` | Strict default-deny RLS, `search_path = pg_catalog, public` |
 | **Shared Protocol** | Monorepo Package (`@simply-ppt/protocol`) | `1.0.0` | Zod runtime validated typed RPC/Realtime envelope |
 
@@ -50,7 +50,7 @@
 - `android:usesCleartextTraffic="false"` and `network_security_config.xml` to prevent unencrypted HTTP communication.
 - XML data extraction rules (`secure_store_data_extraction_rules.xml`) protecting Android 12+ keystore records.
 - Exclusion of dangerous overlay permissions (`SYSTEM_ALERT_WINDOW`).
-- APK signed with APK Signature Scheme v2 (Certificate SHA-256: `fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c`).
+- APK signed with APK Signature Scheme v2 & v3 (Certificate SHA-256: `dc35795c37c468d3ff92aa32c608f15f2f2456deb9a924576e2e2fb97ad9e708`, Subject: `CN=Simply PPT Release, O=Simply PPT, C=ID`).
 
 ---
 
