@@ -241,7 +241,8 @@ export class MobileSupabaseService {
         } else if (msg.type === 'DEVICE_DISCONNECTED') {
           const p = msg.payload as { deviceId?: string; reason?: string };
           secureStorage.getOrCreateDeviceId().then((myDeviceId) => {
-            if (!p?.deviceId || p.deviceId === myDeviceId) {
+            // Strictly check that the disconnect notification is explicitly addressed to this device
+            if (p?.deviceId && p.deviceId === myDeviceId) {
               this.setStatus('revoked');
               secureStorage.clearSession();
             }

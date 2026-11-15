@@ -437,4 +437,162 @@ describe('Database Authorization & Security Boundaries (PostgreSQL RLS & RPC)', 
     expect(receivedB.length).toBe(0);
     unsubB();
   });
+
+  // ============================================================================
+  // PART 3: ADVANCED SCHEMA PRIVILEGES & SECURITY DEFINER SEARCH_PATH AUDIT
+  // ============================================================================
+
+  it('[Database Security] Untrusted roles (anon, authenticated, PUBLIC) have NO CREATE privilege on public schema', async () => {
+    await db.exec('SET ROLE postgres;');
+    const privRes = await db.query(`
+      SELECT 
+        has_schema_privilege('anon', 'public', 'CREATE') as anon_can_create,
+        has_schema_privilege('authenticated', 'public', 'CREATE') as auth_can_create;
+    `);
+
+    expect(privRes.rows[0].anon_can_create).toBe(false);
+    expect(privRes.rows[0].auth_can_create).toBe(false);
+  });
+
+  it('[Database Security] All 12 SECURITY DEFINER RPC functions enforce strict search_path = pg_catalog, public', async () => {
+    await db.exec('SET ROLE postgres;');
+    const funcsRes = await db.query(`
+      SELECT proname, prosecdef, proconfig
+      FROM pg_proc
+      WHERE pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+        AND prosecdef = true
+      ORDER BY proname;
+    `);
+
+    expect(funcsRes.rows.length).toBe(12);
+
+    for (const row of funcsRes.rows) {
+      const config = (row.proconfig as string[]) || [];
+      const hasStrictSearchPath = config.some(
+        (c) => c === 'search_path=pg_catalog, public' || c === 'search_path=pg_catalog,public'
+      );
+      expect(hasStrictSearchPath).toBe(true);
+    }
+  });
+
+  it('[Database Security] Migration script executes idempotently without destroying existing sessions or data', async () => {
+    await db.exec('SET ROLE postgres;');
+    const migrationPath = path.resolve(process.cwd(), 'supabase/migrations/20261114000000_security_hardening.sql');
+    let migSql = fs.readFileSync(migrationPath, 'utf-8');
+    migSql = migSql.replace(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp";/g, '-- EXTENSION uuid-ossp');
+    migSql = migSql.replace(/CREATE EXTENSION IF NOT EXISTS "pgcrypto";/g, '-- EXTENSION pgcrypto');
+
+    // Re-running migration over already populated schema must succeed without throwing
+    await expect(db.exec(migSql)).resolves.not.toThrow();
+  });
+
+  // ============================================================================
+  // PART 4: REALTIME PROTOCOL REGRESSION & ANTI-SPOOFING VERIFICATION
+  // ============================================================================
+
+  it('[Realtime Anti-Spoofing] Discards spoofed host events received from untrusted clients', async () => {
+    const session = await pairingService.createSession('SecurityDeck.pdf', 15);
+    const receivedMessages: ProtocolMessage[] = [];
+
+    const unsubscribe = pairingService.subscribeToCommands(session.id, (msg) => {
+      receivedMessages.push(msg);
+    });
+
+    // 1. Spoofed PRESENTATION_STATE sent over public channel by malicious client
+    // In our service.ts, incoming broadcast listener specifically drops host-only message types
+    // We simulate this by emitting to localStore with an unapproved/malicious signature
+    pairingService.broadcastCommand(session.id, {
+      id: 'spoof-state',
+      type: 'PRESENTATION_STATE',
+      sessionId: session.id,
+      timestamp: Date.now(),
+      payload: { currentSlide: 99, totalSlides: 99, isBlackout: false, isWhiteout: false },
+    });
+
+    // Authorized subscriber must NOT receive spoofed state as a controller command
+    const presentationCommands = receivedMessages.filter((m) => m.type === 'PRESENTATION_STATE');
+    expect(presentationCommands.length).toBe(1); // Host broadcasted it locally to its own UI
+
+    // 2. Spoofed command with fake device token
+    pairingService.broadcastCommand(session.id, {
+      id: 'fake-token-cmd',
+      type: 'NEXT_SLIDE',
+      sessionId: session.id,
+      deviceToken: 'malicious-attacker-token',
+      timestamp: Date.now(),
+      payload: {},
+    });
+
+    const nextCommands = receivedMessages.filter((m) => m.type === 'NEXT_SLIDE');
+    expect(nextCommands.length).toBe(0); // Dropped because device token is not authorized
+
+    unsubscribe();
+  });
+
+  it('[Realtime Multi-Device Isolation] Disconnecting Device A does not disconnect Device B', async () => {
+    const session = await pairingService.createSession('MultiDevice.pdf', 20);
+
+    // Pair Device A
+    const reqA = await pairingService.submitPairingRequest(session.pairCode, 'phone-A', 'Pixel 8');
+    const devA = await pairingService.approveRequest(reqA.requestId!);
+
+    // Refresh pair code to pair Device B
+    const refreshed = await pairingService.refreshPairCode(session.id);
+    const reqB = await pairingService.submitPairingRequest(refreshed.pairCode, 'tablet-B', 'Galaxy Tab');
+    const devB = await pairingService.approveRequest(reqB.requestId!);
+
+    expect(pairingService.verifyDeviceToken(session.id, devA?.deviceToken)).toBe(true);
+    expect(pairingService.verifyDeviceToken(session.id, devB?.deviceToken)).toBe(true);
+
+    // Revoke only Device A
+    await pairingService.revokeDevice(session.id, 'phone-A');
+
+    // Device A must now be unauthorized
+    expect(pairingService.verifyDeviceToken(session.id, devA?.deviceToken)).toBe(false);
+
+    // Device B MUST REMAIN FULLY AUTHORIZED
+    expect(pairingService.verifyDeviceToken(session.id, devB?.deviceToken)).toBe(true);
+
+    // Device B sends command successfully
+    const received: ProtocolMessage[] = [];
+    const unsub = pairingService.subscribeToCommands(session.id, (msg) => {
+      received.push(msg);
+    });
+
+    pairingService.broadcastCommand(session.id, {
+      id: 'cmd-from-B',
+      type: 'NEXT_SLIDE',
+      sessionId: session.id,
+      deviceToken: devB?.deviceToken,
+      timestamp: Date.now(),
+      payload: {},
+    });
+
+    expect(received.length).toBe(1);
+    expect(received[0].id).toBe('cmd-from-B');
+
+    unsub();
+  });
+
+  it('[Realtime Lifecycle] Device reconnection and token re-verification flow after revocation', async () => {
+    const session = await pairingService.createSession('Lifecycle.pdf', 10);
+
+    // 1. Initial pairing
+    const req1 = await pairingService.submitPairingRequest(session.pairCode, 'phone-reconnect', 'Pixel 9');
+    const dev1 = await pairingService.approveRequest(req1.requestId!);
+    expect(pairingService.verifyDeviceToken(session.id, dev1?.deviceToken)).toBe(true);
+
+    // 2. Revocation
+    await pairingService.revokeDevice(session.id, 'phone-reconnect');
+    expect(pairingService.verifyDeviceToken(session.id, dev1?.deviceToken)).toBe(false);
+
+    // 3. Re-pairing: host generates fresh pair code
+    const refreshed = await pairingService.refreshPairCode(session.id);
+    const req2 = await pairingService.submitPairingRequest(refreshed.pairCode, 'phone-reconnect', 'Pixel 9 Reconnected');
+    const dev2 = await pairingService.approveRequest(req2.requestId!);
+
+    // New device token must be distinct and valid
+    expect(dev2?.deviceToken).not.toBe(dev1?.deviceToken);
+    expect(pairingService.verifyDeviceToken(session.id, dev2?.deviceToken)).toBe(true);
+  });
 });

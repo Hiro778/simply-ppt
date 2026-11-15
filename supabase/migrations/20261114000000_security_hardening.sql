@@ -80,9 +80,15 @@ CREATE TABLE IF NOT EXISTS public.pairing_rate_limits (
 );
 
 -- ==============================================================================
--- 2. ROW LEVEL SECURITY (RLS) POLICIES
+-- 2. ROW LEVEL SECURITY (RLS) POLICIES & SCHEMA PRIVILEGES
 -- Strict zero-trust model: default deny on all direct table queries for public anon
 -- ==============================================================================
+
+-- 2.0 Schema Privileges Hardening:
+-- Revoke CREATE privilege on schema public from untrusted roles to prevent arbitrary object injection
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM anon;
+REVOKE CREATE ON SCHEMA public FROM authenticated;
 
 ALTER TABLE public.presentation_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pairing_requests ENABLE ROW LEVEL SECURITY;
@@ -92,24 +98,28 @@ ALTER TABLE public.pairing_rate_limits ENABLE ROW LEVEL SECURITY;
 -- 2.1 presentation_sessions:
 -- NO DIRECT PUBLIC SELECT: completely prevents anonymous users from enumerating sessions.
 -- Only host can select or update their own session with matching host token hash.
+DROP POLICY IF EXISTS "Host select own session" ON public.presentation_sessions;
 CREATE POLICY "Host select own session"
     ON public.presentation_sessions
     FOR SELECT
     TO public
     USING (false); -- Direct SELECT blocked; queries must use secure RPC functions
 
+DROP POLICY IF EXISTS "Direct insert denied" ON public.presentation_sessions;
 CREATE POLICY "Direct insert denied"
     ON public.presentation_sessions
     FOR INSERT
     TO public
     WITH CHECK (false);
 
+DROP POLICY IF EXISTS "Direct update denied" ON public.presentation_sessions;
 CREATE POLICY "Direct update denied"
     ON public.presentation_sessions
     FOR UPDATE
     TO public
     USING (false);
 
+DROP POLICY IF EXISTS "Direct delete denied" ON public.presentation_sessions;
 CREATE POLICY "Direct delete denied"
     ON public.presentation_sessions
     FOR DELETE
@@ -118,18 +128,21 @@ CREATE POLICY "Direct delete denied"
 
 -- 2.2 pairing_requests:
 -- Direct access denied; devices must use rpc_submit_pairing_request and rpc_poll_pairing_status
+DROP POLICY IF EXISTS "Direct requests select denied" ON public.pairing_requests;
 CREATE POLICY "Direct requests select denied"
     ON public.pairing_requests
     FOR SELECT
     TO public
     USING (false);
 
+DROP POLICY IF EXISTS "Direct requests insert denied" ON public.pairing_requests;
 CREATE POLICY "Direct requests insert denied"
     ON public.pairing_requests
     FOR INSERT
     TO public
     WITH CHECK (false);
 
+DROP POLICY IF EXISTS "Direct requests update denied" ON public.pairing_requests;
 CREATE POLICY "Direct requests update denied"
     ON public.pairing_requests
     FOR UPDATE
@@ -137,18 +150,21 @@ CREATE POLICY "Direct requests update denied"
     USING (false);
 
 -- 2.3 paired_devices:
+DROP POLICY IF EXISTS "Direct paired devices select denied" ON public.paired_devices;
 CREATE POLICY "Direct paired devices select denied"
     ON public.paired_devices
     FOR SELECT
     TO public
     USING (false);
 
+DROP POLICY IF EXISTS "Direct paired devices insert denied" ON public.paired_devices;
 CREATE POLICY "Direct paired devices insert denied"
     ON public.paired_devices
     FOR INSERT
     TO public
     WITH CHECK (false);
 
+DROP POLICY IF EXISTS "Direct paired devices update denied" ON public.paired_devices;
 CREATE POLICY "Direct paired devices update denied"
     ON public.paired_devices
     FOR UPDATE
@@ -164,7 +180,7 @@ CREATE OR REPLACE FUNCTION public.check_rate_limit(p_identifier TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_rec RECORD;
@@ -205,7 +221,7 @@ CREATE OR REPLACE FUNCTION public.record_failed_rate_limit(p_identifier TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
@@ -235,7 +251,7 @@ CREATE OR REPLACE FUNCTION public.rpc_create_session(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     INSERT INTO public.presentation_sessions (
@@ -277,7 +293,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -321,7 +337,7 @@ CREATE OR REPLACE FUNCTION public.rpc_submit_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     -- Verify session is active and not expired
@@ -369,7 +385,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -395,7 +411,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -428,7 +444,7 @@ CREATE OR REPLACE FUNCTION public.rpc_approve_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_req RECORD;
@@ -493,7 +509,7 @@ CREATE OR REPLACE FUNCTION public.rpc_reject_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -521,7 +537,7 @@ CREATE OR REPLACE FUNCTION public.rpc_revoke_device(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -547,7 +563,7 @@ CREATE OR REPLACE FUNCTION public.rpc_verify_device_token(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -569,7 +585,7 @@ CREATE OR REPLACE FUNCTION public.rpc_refresh_pair_code(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     UPDATE public.presentation_sessions

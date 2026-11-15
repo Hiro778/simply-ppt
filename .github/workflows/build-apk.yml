@@ -1,0 +1,73 @@
+name: Simply PPT Android Release Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/protocol/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Mobile Dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Verify TypeScript & Jest Tests
+        working-directory: apps/mobile
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build Android Release APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Verify Generated APK
+        run: |
+          APK_PATH="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK successfully built at $APK_PATH"
+            sha256sum "$APK_PATH"
+          else
+            echo "Error: APK not found"
+            exit 1
+          fi
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simply-ppt-android-release
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 14

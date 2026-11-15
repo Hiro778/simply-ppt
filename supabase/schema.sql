@@ -80,9 +80,15 @@ CREATE TABLE IF NOT EXISTS public.pairing_rate_limits (
 );
 
 -- ==============================================================================
--- 2. ROW LEVEL SECURITY (RLS) POLICIES
+-- 2. ROW LEVEL SECURITY (RLS) POLICIES & SCHEMA PRIVILEGES
 -- Strict zero-trust model: default deny on all direct table queries for public anon
 -- ==============================================================================
+
+-- 2.0 Schema Privileges Hardening:
+-- Revoke CREATE privilege on schema public from untrusted roles to prevent arbitrary object injection
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE CREATE ON SCHEMA public FROM anon;
+REVOKE CREATE ON SCHEMA public FROM authenticated;
 
 ALTER TABLE public.presentation_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pairing_requests ENABLE ROW LEVEL SECURITY;
@@ -164,7 +170,7 @@ CREATE OR REPLACE FUNCTION public.check_rate_limit(p_identifier TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_rec RECORD;
@@ -205,7 +211,7 @@ CREATE OR REPLACE FUNCTION public.record_failed_rate_limit(p_identifier TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
@@ -235,7 +241,7 @@ CREATE OR REPLACE FUNCTION public.rpc_create_session(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     INSERT INTO public.presentation_sessions (
@@ -277,7 +283,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -321,7 +327,7 @@ CREATE OR REPLACE FUNCTION public.rpc_submit_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     -- Verify session is active and not expired
@@ -369,7 +375,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -395,7 +401,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -428,7 +434,7 @@ CREATE OR REPLACE FUNCTION public.rpc_approve_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
     v_req RECORD;
@@ -493,7 +499,7 @@ CREATE OR REPLACE FUNCTION public.rpc_reject_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -521,7 +527,7 @@ CREATE OR REPLACE FUNCTION public.rpc_revoke_device(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -547,7 +553,7 @@ CREATE OR REPLACE FUNCTION public.rpc_verify_device_token(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -569,7 +575,7 @@ CREATE OR REPLACE FUNCTION public.rpc_refresh_pair_code(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
     UPDATE public.presentation_sessions
