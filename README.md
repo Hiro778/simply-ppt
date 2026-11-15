@@ -33,15 +33,15 @@ Traditional presentation remotes require physical dongles, expensive clickers, o
 - **Host Approval Dialog:** Desktop host reviews the device name and ID with "Approve" and "Decline" actions.
 - **Granular Session Revocation:** Disconnect or revoke any paired controller at any moment.
 
-### 📱 Future Mobile Protocol (Phase 2 Ready)
-Prepared shared TypeScript protocol contract supporting 4 operating modes:
-1. **Remote Mode:** Intuitive Next/Previous buttons, slide jumping, and elapsed presentation timer.
-2. **Annotation Mode:** Real-time synchronized pen drawings, highlighters, and instant canvas clearing.
-3. **Presenter Mode:** Smooth virtual laser pointer tracking and regional canvas zoom (1.0x to 5.0x).
-4. **Speak Only Mode:** Hands-free voice commands strictly supporting 3 Indonesian voice triggers:
+### 📱 Mobile Android Remote Controller (Phase 2 Delivered)
+Full native Android companion controller in [`apps/mobile`](apps/mobile) supporting 4 operating modes:
+1. **Remote Mode:** Intuitive Next/Previous buttons, slide jumping, elapsed presentation timer, and instant Blackout (`B`) / Whiteout (`W`) stage shading.
+2. **Annotation Mode:** Real-time synchronized freehand pen drawings, highlighters, and instant canvas clearing (`CLEAR_ANNOTATION`).
+3. **Presenter Mode:** Smooth virtual laser pointer tracking (`LASER_POINTER` 60 Hz normalized coordinates) and regional canvas zoom (1.0x to 5.0x).
+4. **Speak Only Mode:** Hands-free Indonesian voice recognition strictly supporting 3 voice triggers with duplicate command suppression:
    - `"Lanjut slide"` &rarr; `NEXT_SLIDE`
    - `"Slide sebelumnya"` &rarr; `PREVIOUS_SLIDE`
-   - `"Slide [number]"` &rarr; `GO_TO_SLIDE`
+   - `"Slide [number]"` &rarr; `GO_TO_SLIDE` (e.g. *"Slide lima"* &rarr; Slide 5)
 
 ### 💾 Local Presentation Library & History
 - Browser IndexedDB persistence: presentations and presentation logs are cached on-device for instant offline recall.
@@ -238,27 +238,74 @@ To enable live cross-network cloud pairing with Supabase:
 
 ---
 
-## 9. Supabase Setup & Zero-Trust Database Architecture
+## 9. Supabase Configuration & Complete Pairing Walkthrough
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Open the **SQL Editor** in your Supabase Dashboard.
-3. Run the hardened schema script located at [`supabase/schema.sql`](supabase/schema.sql).
-4. The schema enforces a **Default-Deny Zero-Trust RLS Model**:
-   - Direct anonymous `SELECT`, `UPDATE`, and `DELETE` operations on sensitive tables (`presentation_sessions`, `pairing_requests`, `paired_devices`) are completely disabled.
-   - All interactions are mediated through hardened `SECURITY DEFINER` RPC functions with explicit cryptographic verification.
-   - All session host tokens, device tokens, and temporary pair codes are stored as salted SHA-256 hashes (`host_token_hash`, `device_token_hash`, `pair_code_hash`). Plaintext secrets never reside in database tables.
-   - Rate limiting is enforced at the database level (`pairing_rate_limits` table and `rpc_resolve_pair_code`) to thwart brute-force pair code enumeration.
-5. Functions defined:
-   - `rpc_create_session`: Creates a new session with hashed host token and pair code.
-   - `rpc_resolve_pair_code`: Resolves pair code to session ID with rate limiting and 3-minute TTL check.
-   - `rpc_submit_pairing_request`: Mobile client submits pairing request with requester secret hash.
-   - `rpc_poll_pairing_status`: Requester polls status with secret hash without viewing other device tokens.
-   - `rpc_host_get_pending_requests`: Host retrieves pending requests authenticated via host token hash.
-   - `rpc_approve_pairing_request`: Host approves a device; invalidates the single-use 6-digit pair code.
-   - `rpc_reject_pairing_request`: Host rejects pending request.
-   - `rpc_revoke_device`: Host revokes device, immediately blocking further commands.
-   - `rpc_verify_device_token`: Verifies that an approved device token remains active.
-   - `rpc_refresh_pair_code`: Generates a new code when expired or requested by host.
+Follow this step-by-step guide to configure Supabase from scratch and establish a secure, cross-network pairing session:
+
+### Step 1: Create Supabase Project
+1. Log in to [supabase.com](https://supabase.com) and click **"New Project"**.
+2. Select an organization, name your project (e.g., `simply-ppt-prod`), choose your nearest database region, and generate a strong database password.
+3. Once initialized, navigate to **Project Settings &rarr; API**.
+4. Note your **Project URL** (`https://<project-ref>.supabase.co`) and **`anon` `public` API key**.
+   *(Never use or reveal the `service_role` key).*
+
+### Step 2: Apply Database Schema & Security Migrations
+1. Open the **SQL Editor** in your Supabase Dashboard.
+2. Open [`supabase/schema.sql`](supabase/schema.sql) (or migration [`supabase/migrations/20261114000000_security_hardening.sql`](supabase/migrations/20261114000000_security_hardening.sql)).
+3. Paste the complete SQL into the query editor and click **Run**.
+4. This creates:
+   - 4 tables: `presentation_sessions`, `pairing_requests`, `paired_devices`, and `pairing_rate_limits`.
+   - Strict Default-Deny RLS (`USING (false)` / `WITH CHECK (false)`) denying all direct public access.
+   - 12 hardened `SECURITY DEFINER` functions with fixed `search_path = public, pg_temp`.
+
+### Step 3: Verify Supabase Realtime Signaling
+1. Navigate to **Database &rarr; Replication** in the Supabase Dashboard.
+2. Simply PPT uses **Realtime Broadcast channels** (`presentation:<session-id>`) which operate over WebSockets for zero-latency signaling. Broadcast channels require no special table replication triggers since presentation control signals are ephemeral and document binaries remain strictly local.
+
+### Step 4: Configure Desktop Host
+1. In the repository root, create or update `.env.local`:
+   ```ini
+   NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+   NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+   ```
+2. Start the web application:
+   ```bash
+   pnpm dev
+   ```
+3. Open [http://127.0.0.1:3000](http://127.0.0.1:3000) and upload any presentation PDF.
+
+### Step 5: Configure Android Controller
+You have two flexible options for the Android app:
+- **Option A (In-App Settings UI):** Launch the Simply PPT Android APK. In the Welcome screen, tap **"Server Settings"** and paste your Supabase Project URL and Anon Key. The settings are encrypted at rest using `Expo SecureStore` (Android Keystore / TEE).
+- **Option B (Build Environment):** In `apps/mobile/.env`:
+  ```ini
+  EXPO_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+  EXPO_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  ```
+
+### Step 6: Step-by-Step Pairing & Verification
+1. **Desktop Host:**
+   - Click **"Pair Mobile Controller"** in the top navigation bar.
+   - A single-use 6-digit numeric pair code appears with an animated 3-minute countdown timer (e.g. `482910`).
+   - The desktop initiates a secure session in Supabase with `host_session_token_hash` and `pair_code_hash`.
+2. **Android Mobile Controller:**
+   - Launch the app and enter the 6-digit code.
+   - Tap **"Connect"**. The app submits an ephemeral `rpc_submit_pairing_request` with `requester_secret_hash` and enters the waiting radar screen.
+3. **Desktop Host Approval:**
+   - The desktop instantly detects the incoming connection and displays the **Approval Dialog**:
+     > *"New Controller Request: Hiro's Android Phone (android_17316...)"*
+   - Click **"Approve"**.
+   - `rpc_approve_pairing_request` verifies the host token hash, generates an encrypted device token, registers `device_token_hash`, and immediately invalidates the single-use 6-digit code.
+4. **Active Control:**
+   - The mobile controller receives approval, saves the device token to `SecureStore`, establishes the bi-directional Realtime broadcast channel, and opens Mode Selection.
+   - You can now freely use:
+     - **Remote Mode:** Tap Next/Previous, First/Last slide, Jump to slide, or Blackout (`B`) / Whiteout (`W`).
+     - **Annotation Mode:** Draw freehand or highlight directly on the projection screen.
+     - **Presenter Mode:** Move the 60 Hz virtual laser dot or zoom into slide details.
+     - **Speak Only Mode:** Speak *"Lanjut slide"*, *"Slide sebelumnya"*, or *"Slide [number]"*.
+5. **Immediate Revocation:**
+   - At any time, click **"Paired Devices"** on the desktop host and click **"Revoke"**.
+   - The device token is marked `is_active = false` in PostgreSQL. Any subsequent Realtime commands from that device are rejected immediately.
 
 ---
 

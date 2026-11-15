@@ -8,6 +8,8 @@ import {
   PreviousSlidePayloadSchema,
   ZoomPayloadSchema,
   ClearAnnotationPayloadSchema,
+  BlackoutPayloadSchema,
+  WhiteoutPayloadSchema,
   PresentationStatePayloadSchema,
   DeviceConnectedPayloadSchema,
   DeviceDisconnectedPayloadSchema,
@@ -67,6 +69,14 @@ export function validateProtocolMessage(raw: unknown): ValidationResult<Protocol
     }
     case 'CLEAR_ANNOTATION': {
       const res = ClearAnnotationPayloadSchema.safeParse(msg.payload);
+      return res.success ? { success: true, data: { ...msg, payload: res.data } } : { success: false, error: res.error.message };
+    }
+    case 'BLACKOUT': {
+      const res = BlackoutPayloadSchema.safeParse(msg.payload);
+      return res.success ? { success: true, data: { ...msg, payload: res.data } } : { success: false, error: res.error.message };
+    }
+    case 'WHITEOUT': {
+      const res = WhiteoutPayloadSchema.safeParse(msg.payload);
       return res.success ? { success: true, data: { ...msg, payload: res.data } } : { success: false, error: res.error.message };
     }
     case 'PRESENTATION_STATE': {

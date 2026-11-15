@@ -47,6 +47,8 @@ During the Post-Phase 1 security audit, critical vulnerabilities were identified
 | **Session Enumeration** | Anonymous users could query `SELECT * FROM presentation_sessions` to discover all active sessions. | Blocked completely. Sessions can only be resolved via 6-digit pair code through the rate-limited RPC `rpc_resolve_pair_code`. |
 | **Unauthorized Session Mutations** | Direct UPDATE allowed anyone to modify slides, title, or status without authorization. | Direct UPDATE is blocked. Pair code refreshing and device revocation require verification of `host_session_token_hash`. |
 | **Brute-Force Pair Code Enumeration** | An attacker could rapidly guess 6-digit codes against the database. | Server-side rate limiting (`pairing_rate_limits` table) locks out an IP/client identifier for 5 minutes after 5 failed attempts. |
+| **PostgreSQL Search Path Hijacking** | `SECURITY DEFINER` functions executed without explicit `search_path`, vulnerable to schema shadowing. | All 12 `SECURITY DEFINER` functions explicitly pinned with `SET search_path = public, pg_temp`. |
+| **Realtime Broadcast Host Event Spoofing** | External subscribers could inject fake host notifications (`PRESENTATION_STATE`, `DEVICE_DISCONNECTED`) over the public WebSocket bus. | Incoming Realtime listener on the desktop host drops unauthorized host-type events received on the channel. |
 | **Revoked Device Command Leak** | Revoked devices could still broadcast messages over Realtime channels. | Realtime command dispatch verifies `is_active` status and `device_token`. Commands from revoked tokens are dropped immediately. |
 
 ---

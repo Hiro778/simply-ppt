@@ -160,6 +160,24 @@ Clears drawings and highlights for the current or specified slide.
 }
 ```
 
+#### `BLACKOUT`
+Toggles stage blackout shading (black screen to refocus audience).
+- **Payload:**
+```json
+{
+  "enabled": true
+}
+```
+
+#### `WHITEOUT`
+Toggles stage whiteout shading (white screen).
+- **Payload:**
+```json
+{
+  "enabled": true
+}
+```
+
 #### `PRESENTATION_STATE`
 Broadcast from Desktop host to controllers whenever slide changes or presentation mode toggles.
 - **Payload:**

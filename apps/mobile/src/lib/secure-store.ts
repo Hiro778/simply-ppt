@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { generateRandomHex } from './crypto';
 
 const KEYS = {
   DEVICE_TOKEN: 'simply_ppt_secure_device_token',
@@ -81,7 +82,7 @@ export const secureStorage = {
   async getOrCreateDeviceId(): Promise<string> {
     let id = await safeGet(KEYS.DEVICE_ID);
     if (!id) {
-      id = `android_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      id = `android_${Date.now()}_${generateRandomHex(4)}`;
       await safeSet(KEYS.DEVICE_ID, id);
     }
     return id;

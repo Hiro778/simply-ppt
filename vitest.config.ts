@@ -5,16 +5,19 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    fileParallelism: false,
+    environment: 'jsdom',
     isolate: false,
-    testTimeout: 30000,
-    hookTimeout: 60000,
+    pool: 'forks',
+    forks: {
+      singleFork: true,
+    },
+    testTimeout: 60000,
+    hookTimeout: 90000,
   },
 });

@@ -361,6 +361,20 @@ export function PresentationViewer({
           break;
         }
 
+        case 'BLACKOUT': {
+          const p = msg.payload as { enabled?: boolean };
+          setIsBlackout((prev) => (p?.enabled !== undefined ? p.enabled : !prev));
+          setIsWhiteout(false);
+          break;
+        }
+
+        case 'WHITEOUT': {
+          const p = msg.payload as { enabled?: boolean };
+          setIsWhiteout((prev) => (p?.enabled !== undefined ? p.enabled : !prev));
+          setIsBlackout(false);
+          break;
+        }
+
         default:
           break;
       }

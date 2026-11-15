@@ -35,6 +35,8 @@ export default function RemoteModeScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isBlackout, setIsBlackout] = useState(false);
+  const [isWhiteout, setIsWhiteout] = useState(false);
 
   useEffect(() => {
     // Listen to real-time presentation state broadcasts from desktop
@@ -87,6 +89,22 @@ export default function RemoteModeScreen() {
     if (totalSlides > 0) {
       handleGoToSlide(totalSlides);
     }
+  }
+
+  async function handleToggleBlackout() {
+    await triggerHaptic('selection');
+    const next = !isBlackout;
+    setIsBlackout(next);
+    if (next) setIsWhiteout(false);
+    mobileSupabase.sendCommand('BLACKOUT', { enabled: next });
+  }
+
+  async function handleToggleWhiteout() {
+    await triggerHaptic('selection');
+    const next = !isWhiteout;
+    setIsWhiteout(next);
+    if (next) setIsBlackout(false);
+    mobileSupabase.sendCommand('WHITEOUT', { enabled: next });
   }
 
   function formatTime(secs: number) {
@@ -158,6 +176,28 @@ export default function RemoteModeScreen() {
           >
             <Text style={styles.quickNavText}>Last Slide</Text>
             <ChevronsRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Stage Shading: Blackout (B) & Whiteout (W) */}
+        <View style={styles.shadingRow}>
+          <TouchableOpacity
+            onPress={handleToggleBlackout}
+            activeOpacity={0.7}
+            style={[styles.shadingBtn, isBlackout && styles.shadingBtnActiveBlack]}
+          >
+            <Text style={[styles.shadingBtnText, isBlackout && styles.shadingBtnTextActive]}>
+              {isBlackout ? '⚫ Blackout Active' : 'Blackout (B)'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleToggleWhiteout}
+            activeOpacity={0.7}
+            style={[styles.shadingBtn, isWhiteout && styles.shadingBtnActiveWhite]}
+          >
+            <Text style={[styles.shadingBtnText, isWhiteout && styles.shadingBtnTextActiveWhite]}>
+              {isWhiteout ? '⚪ Whiteout Active' : 'Whiteout (W)'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -308,6 +348,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     fontWeight: '600',
+  },
+  shadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  shadingBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  shadingBtnActiveBlack: {
+    backgroundColor: '#000000',
+    borderColor: colors.accent,
+  },
+  shadingBtnActiveWhite: {
+    backgroundColor: '#ffffff',
+    borderColor: colors.accent,
+  },
+  shadingBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  shadingBtnTextActive: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  shadingBtnTextActiveWhite: {
+    color: '#000000',
+    fontWeight: '700',
   },
   buttonsContainer: {
     flex: 1,

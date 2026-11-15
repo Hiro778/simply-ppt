@@ -17,8 +17,21 @@ node_modules/
 /.next/
 /out/
 
-# production
+# production & binary artifacts
 /build
+*.apk
+*.aab
+artifacts/*.apk
+
+# mobile / android
+.gradle/
+**/android/.gradle/
+**/android/build/
+**/android/app/build/
+**/android/local.properties
+**/android/.cxx/
+*.keystore
+!**/android/app/debug.keystore
 
 # misc
 .DS_Store

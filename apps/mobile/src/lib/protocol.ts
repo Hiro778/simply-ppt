@@ -17,6 +17,8 @@ export const CommandTypeEnum = z.enum([
   'LASER_POINTER',
   'ZOOM',
   'CLEAR_ANNOTATION',
+  'BLACKOUT',
+  'WHITEOUT',
   'PRESENTATION_STATE',
   'DEVICE_CONNECTED',
   'DEVICE_DISCONNECTED',
@@ -74,6 +76,16 @@ export const ClearAnnotationPayloadSchema = z.object({
   slideNumber: z.number().int().positive().max(10000).optional(),
 });
 export type ClearAnnotationPayload = z.infer<typeof ClearAnnotationPayloadSchema>;
+
+export const BlackoutPayloadSchema = z.object({
+  enabled: z.boolean().optional(),
+}).strict().optional().default({});
+export type BlackoutPayload = z.infer<typeof BlackoutPayloadSchema>;
+
+export const WhiteoutPayloadSchema = z.object({
+  enabled: z.boolean().optional(),
+}).strict().optional().default({});
+export type WhiteoutPayload = z.infer<typeof WhiteoutPayloadSchema>;
 
 export const PresentationStatePayloadSchema = z.object({
   currentSlide: z.number().int().min(1).max(10000),

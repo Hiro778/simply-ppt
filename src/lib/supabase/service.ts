@@ -9,7 +9,6 @@ import {
   hashPairCode,
   hashDeviceToken,
   hashRequesterSecret,
-  generateSalt,
   generateSecureToken,
   DEFAULT_PAIR_CODE_SALT,
 } from '../crypto/hash';
@@ -500,6 +499,14 @@ export class PairingService {
           const raw = event.payload;
           const validation = validateProtocolMessage(raw);
           if (validation.success && validation.data) {
+            // Drop spoofed host-only events received over public broadcast channel
+            if (
+              validation.data.type === 'PRESENTATION_STATE' ||
+              validation.data.type === 'DEVICE_CONNECTED' ||
+              validation.data.type === 'DEVICE_DISCONNECTED'
+            ) {
+              return;
+            }
             authorizedHandler(validation.data);
           }
         })

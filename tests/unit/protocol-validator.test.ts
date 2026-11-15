@@ -122,6 +122,30 @@ describe('Protocol & Command Validator (Unit)', () => {
     expect(res.success).toBe(true);
   });
 
+  it('validates BLACKOUT command', () => {
+    const raw: ProtocolMessage = {
+      id: 'msg-9b',
+      type: 'BLACKOUT',
+      sessionId: 'sess-123',
+      timestamp: Date.now(),
+      payload: { enabled: true },
+    };
+    const res = validateProtocolMessage(raw);
+    expect(res.success).toBe(true);
+  });
+
+  it('validates WHITEOUT command', () => {
+    const raw: ProtocolMessage = {
+      id: 'msg-9w',
+      type: 'WHITEOUT',
+      sessionId: 'sess-123',
+      timestamp: Date.now(),
+      payload: { enabled: true },
+    };
+    const res = validateProtocolMessage(raw);
+    expect(res.success).toBe(true);
+  });
+
   it('validates PRESENTATION_STATE broadcast message', () => {
     const raw: ProtocolMessage = {
       id: 'msg-10',

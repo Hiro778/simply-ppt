@@ -240,9 +240,12 @@ export class MobileSupabaseService {
           this.stateListeners.forEach((cb) => cb(state));
         } else if (msg.type === 'DEVICE_DISCONNECTED') {
           const p = msg.payload as { deviceId?: string; reason?: string };
-          // If revoked, transition to revoked status
-          this.setStatus('revoked');
-          secureStorage.clearSession();
+          secureStorage.getOrCreateDeviceId().then((myDeviceId) => {
+            if (!p?.deviceId || p.deviceId === myDeviceId) {
+              this.setStatus('revoked');
+              secureStorage.clearSession();
+            }
+          });
         }
 
         this.commandListeners.forEach((cb) => cb(msg));
@@ -269,7 +272,7 @@ export class MobileSupabaseService {
     }
 
     const message: ProtocolMessage = {
-      id: `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `cmd_${Date.now()}_${generateRandomHex(4)}`,
       type,
       sessionId: this.currentSessionId,
       deviceToken: this.currentDeviceToken || undefined,

@@ -6,6 +6,8 @@ import {
   LaserPointerPayloadSchema,
   ZoomPayloadSchema,
   GoToSlidePayloadSchema,
+  BlackoutPayloadSchema,
+  WhiteoutPayloadSchema,
   VOICE_COMMANDS,
 } from '../src/lib/protocol';
 import { sha256Pure, hashPairCode, hashRequesterSecret } from '../src/lib/crypto';
@@ -148,6 +150,13 @@ describe('Simply PPT Mobile — Unit Test Suite', () => {
       expect(GoToSlidePayloadSchema.safeParse({ slideNumber: 42 }).success).toBe(true);
       expect(GoToSlidePayloadSchema.safeParse({ slideNumber: 0 }).success).toBe(false);
       expect(GoToSlidePayloadSchema.safeParse({ slideNumber: -5 }).success).toBe(false);
+    });
+
+    it('validates BLACKOUT and WHITEOUT payload schemas', () => {
+      expect(BlackoutPayloadSchema.safeParse({ enabled: true }).success).toBe(true);
+      expect(BlackoutPayloadSchema.safeParse({}).success).toBe(true);
+      expect(WhiteoutPayloadSchema.safeParse({ enabled: false }).success).toBe(true);
+      expect(WhiteoutPayloadSchema.safeParse({}).success).toBe(true);
     });
   });
 });

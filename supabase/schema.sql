@@ -164,6 +164,7 @@ CREATE OR REPLACE FUNCTION public.check_rate_limit(p_identifier TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_rec RECORD;
@@ -204,6 +205,7 @@ CREATE OR REPLACE FUNCTION public.record_failed_rate_limit(p_identifier TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
@@ -233,6 +235,7 @@ CREATE OR REPLACE FUNCTION public.rpc_create_session(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     INSERT INTO public.presentation_sessions (
@@ -274,6 +277,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -317,6 +321,7 @@ CREATE OR REPLACE FUNCTION public.rpc_submit_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     -- Verify session is active and not expired
@@ -364,6 +369,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -389,6 +395,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -421,6 +428,7 @@ CREATE OR REPLACE FUNCTION public.rpc_approve_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_req RECORD;
@@ -485,6 +493,7 @@ CREATE OR REPLACE FUNCTION public.rpc_reject_pairing_request(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -512,6 +521,7 @@ CREATE OR REPLACE FUNCTION public.rpc_revoke_device(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     IF NOT EXISTS (
@@ -537,6 +547,7 @@ CREATE OR REPLACE FUNCTION public.rpc_verify_device_token(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -558,6 +569,7 @@ CREATE OR REPLACE FUNCTION public.rpc_refresh_pair_code(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     UPDATE public.presentation_sessions

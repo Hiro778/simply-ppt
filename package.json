@@ -40,5 +40,8 @@
     "typescript": "^5",
     "vitest": "^5.1.0"
   },
+  "overrides": {
+    "minimatch": ">=11.0.1"
+  },
   "packageManager": "pnpm@12.18.0"
 }
