@@ -1,0 +1,70 @@
+name: Simply PPT Monorepo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify-web:
+    name: Verify Web & Security Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependency Vulnerability Audit
+        run: pnpm audit
+
+      - name: Root TypeScript Check
+        run: pnpm exec tsc --noEmit
+
+      - name: Root ESLint Check
+        run: pnpm lint
+
+      - name: Run Vitest Security & Unit Tests
+        run: pnpm test
+
+      - name: Next.js Production Build
+        run: pnpm build
+
+  verify-mobile:
+    name: Verify Mobile Controller Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Mobile Dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Mobile TypeScript Check
+        working-directory: apps/mobile
+        run: npm run typecheck
+
+      - name: Mobile Jest Test Suite
+        working-directory: apps/mobile
+        run: npm test

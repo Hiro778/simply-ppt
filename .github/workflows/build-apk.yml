@@ -52,7 +52,17 @@ jobs:
 
       - name: Build Android Release APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+            echo "Release keystore decoded from GitHub Actions Secret."
+          fi
+          ./gradlew assembleRelease --no-daemon
 
       - name: Verify Generated APK
         run: |

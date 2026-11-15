@@ -102,11 +102,16 @@ android {
             keyPassword 'android'
         }
         release {
-            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
-                storeFile file(MYAPP_UPLOAD_STORE_FILE)
-                storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            def storeFilePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: (project.findProperty('MYAPP_UPLOAD_STORE_FILE') ?: null)
+            def storePasswordVal = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: (project.findProperty('MYAPP_UPLOAD_STORE_PASSWORD') ?: null)
+            def keyAliasVal = System.getenv("ANDROID_KEY_ALIAS") ?: (project.findProperty('MYAPP_UPLOAD_KEY_ALIAS') ?: null)
+            def keyPasswordVal = System.getenv("ANDROID_KEY_PASSWORD") ?: (project.findProperty('MYAPP_UPLOAD_KEY_PASSWORD') ?: null)
+
+            if (storeFilePath && file(storeFilePath).exists()) {
+                storeFile file(storeFilePath)
+                storePassword storePasswordVal
+                keyAlias keyAliasVal
+                keyPassword keyPasswordVal
             }
         }
     }
@@ -115,8 +120,8 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // In production release builds, use release signingConfig if configured
-            signingConfig (project.hasProperty('MYAPP_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug)
+            def hasReleaseKey = (System.getenv("ANDROID_KEYSTORE_PATH") && file(System.getenv("ANDROID_KEYSTORE_PATH")).exists()) || project.hasProperty('MYAPP_UPLOAD_STORE_FILE')
+            signingConfig (hasReleaseKey ? signingConfigs.release : signingConfigs.debug)
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
