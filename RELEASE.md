@@ -12,7 +12,7 @@
 | Component | Target Platform | Version / Identifier | Integrity / Checksum |
 |---|---|---|---|
 | **Web Presentation System** | Next.js 16 (Turbopack) | `1.0.0` | Node.js 20+, zero-document upload architecture |
-| **Android Remote Controller** | Android (APK) | `com.hiro.simplyppt` (v1.0.0, code 1) | SHA-256: `e7c986e7b1caf50998fac947c1348fbac2ef86b734a1902c0186e7e73b9d9320` |
+| **Android Remote Controller** | Android (APK) | `com.hiro.simplyppt` (v1.0.0, code 1) | SHA-256: `a153c48caef6dc3a7003761c6007e6883d7c579c07f5974faf7aed8b8f6c6b56` |
 | **Database Authorization Schema** | PostgreSQL (Supabase) | `20261114000000_security_hardening.sql` | Strict default-deny RLS, `search_path = pg_catalog, public` |
 | **Shared Protocol** | Monorepo Package (`@simply-ppt/protocol`) | `1.0.0` | Zod runtime validated typed RPC/Realtime envelope |
 
@@ -50,7 +50,7 @@
 - `android:usesCleartextTraffic="false"` and `network_security_config.xml` to prevent unencrypted HTTP communication.
 - XML data extraction rules (`secure_store_data_extraction_rules.xml`) protecting Android 12+ keystore records.
 - Exclusion of dangerous overlay permissions (`SYSTEM_ALERT_WINDOW`).
-- APK signed with APK Signature Scheme v2 & v3 (Certificate SHA-256: `dc35795c37c468d3ff92aa32c608f15f2f2456deb9a924576e2e2fb97ad9e708`, Subject: `CN=Simply PPT Release, O=Simply PPT, C=ID`).
+- APK signed with APK Signature Scheme v2 (Certificate SHA-256: `a93d38bfe8f94432c06827b753b1f21ce08361a7deb61dbaa321a35588e3cab9`, Subject: `CN=Simply PPT Release, O=Simply PPT, C=ID`).
 
 ---
 
@@ -84,3 +84,12 @@
 ├── Dependency Audit:        0 known vulnerabilities
 └── Production Web Build:    Compiled with Next.js Turbopack, 4/4 static pages
 ```
+
+---
+
+## 5. GitHub Actions CI/CD Release Pipeline
+
+| Workflow | Run ID | Status | Elapsed | Output / Artifact |
+|---|---|---|---|---|
+| **Simply PPT Android Release Build** | `43674490121` | Passed (`success`) | 11m 1s | `simply-ppt-android-release` (ID: `14145557646`) |
+| **Simply PPT Monorepo CI** | `43674490132` | Passed (`success`) | 40s | All Web & Mobile tests verified |
